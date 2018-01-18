@@ -6,6 +6,45 @@ class BlockchainException(Exception):
     pass
 
 class Block():
+    """
+    A cryptographically secured block of data that forms the basis of a
+    blockchain. The integrity of the block and its contents can be verified by
+    checking that the hash of its contents and proof pass a predetermined
+    verification test. Each block links back to the previous block in the chain,
+    forming a singly linked list.
+
+    Parameters
+    ----------
+    index : int
+        The index of the current block within the blockchain array
+    timestamp : float or datetime-like
+        Timestamp when the block was mined
+    transactions : json-like or serializable
+        A serializable block of data whose contents are cryptographically secured
+    proof : int
+        A number that, when hashed along with the current block's hash, will
+        produce a string whose first 4 bytes are 0s. A valid proof is required
+        for instantiation.
+    previous_block : Block
+        A reference to the previous block in the blockchain. The first block is
+        initialized with None.
+
+    Examples
+    --------
+    >>> block = Block(0,
+    ...               1516311858.4676182,
+    ...               [{"sender", None,
+    ...                 "recipient", "genesis",
+    ...                 "amount": 1000,
+    ...                 "timestamp": 1516311858.4676182}],
+    ...               172352,
+    ...               None)
+
+    Raises
+    ------
+    BlockchainException
+        when a block does not pass verification
+    """
 
     def __init__(self, index, timestamp, transactions, proof, previous_block):
 
@@ -19,6 +58,15 @@ class Block():
             raise BlockchainException("Block failed verification on init")
 
     def get_hash(self):
+        """
+        Produces a hash string of the contents of the current block for
+        cryptographic security. Hash is based on a concatenated string of the
+        block's index, timestamp, and transaction data.
+
+        Returns
+        -------
+        hash_value : string
+        """
         block_string = "{}{}{}".format(self.index,
                                        self.timestamp,
                                        json.dumps(self.transactions))
@@ -27,9 +75,20 @@ class Block():
         return hash_value
 
     def verify_block(self):
+        """
+        Verifies if the current block is valid. Hashes the combined string of
+        the block's hash along with the proof. It then checks if the first four
+        bytes of the verification hash are 0s (which is the convention of this
+        blockchain).
+
+        Returns
+        -------
+        block_verified : boolean
+        """
         verification_hash = sha256("{}{}".format(self.hash,
                                                  self.proof).encode()).hexdigest()
-        return verification_hash[:4] == "0000"
+        block_verified = verification_hash[:4] == "0000"
+        return block_verified
 
     def __str__(self):
         string_template = "Block: {},\nTime: {},\nProof: {},\nTransactions: {}\n"
@@ -64,16 +123,12 @@ class Blockchain():
         block = self.last_block
         def recursive_verify(block):
             if block.verify_block():
-                print("Block {} verified.".format(block.index))
                 if block.previous_block:
                     return recursive_verify(block.previous_block)
                 else:
-                    print("All blocks verified.")
                     return True
             else:
-                print("Block {} failed verification.".format(block.index))
                 return False
-
         return recursive_verify(block)
 
     def print_blockchain(self):
