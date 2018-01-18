@@ -159,13 +159,13 @@ class Blockchain():
                 return False
         return recursive_verify(block)
 
-    def print_blockchain(self):
-        block = self.last_block
+    @staticmethod
+    def print_blockchain(last_block):
         def recursive_print(block):
             print(block)
             if block.previous_block:
                 recursive_print(block.previous_block)
-        recursive_print(block)
+        recursive_print(last_block)
 
     @staticmethod
     def get_proof(block_hash):
