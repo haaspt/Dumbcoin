@@ -39,6 +39,8 @@ class Block():
     ...                 "timestamp": 1516311858.4676182}],
     ...               172352,
     ...               None)
+    >>> block.verify_block()
+    True
 
     Raises
     ------
@@ -98,7 +100,33 @@ class Block():
                                       self.transactions)
 
 class Blockchain():
+    """
+    An object to assist with the creation and tracking of a blockchain. The
+    object itself stores parameters allowing transactions to be queued before
+    being added to a block, and a reference to the last block in the chain.
 
+    The blockchain itself is a singly linked list of Block objects which can be
+    traversed starting with the `last_block` parameter. Class methods support
+    the initialization of new blockchains, the recording of transactions, etc.
+    While static methods support utility functions for creating new blocks,
+    which can be used without instantiating the class.
+
+    Parameters
+    ----------
+    transactions : list of dicts
+        A record of transactions that have not yet been added to a block
+    seed_amount : int, optional
+        The initial amount of coins available when a genesis block is created.
+        Defaults to 1,000 if not specified.
+    last_block : Block
+        A reference to the last block in the blockchain array
+
+    Examples
+    --------
+    >>> dumbcoin = Blockchain(seed_amount=2000)
+    >>> dumbcoin.verify_blockchain()
+    True
+    """
     def __init__(self, seed_amount=1000):
         self.transactions = []
         self.seed_amount = seed_amount
