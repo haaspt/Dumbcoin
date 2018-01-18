@@ -64,11 +64,14 @@ class Blockchain():
         block = self.last_block
         def recursive_verify(block):
             if block.verify_block():
+                print("Block {} verified.".format(block.index))
                 if block.previous_block:
-                    recursive_verify(block.previous_block)
+                    return recursive_verify(block.previous_block)
                 else:
+                    print("All blocks verified.")
                     return True
             else:
+                print("Block {} failed verification.".format(block.index))
                 return False
 
         return recursive_verify(block)
