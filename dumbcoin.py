@@ -15,6 +15,8 @@ class Block():
         self.proof = proof
         self.previous_block = previous_block
         self.hash = self.get_hash()
+        if not self.verify_block():
+            raise BlockchainException("Block failed verification on init")
 
     def get_hash(self):
         block_string = "{}{}{}".format(self.index,
