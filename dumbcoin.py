@@ -17,14 +17,9 @@ class Block():
         self.hash = self.get_hash()
 
     def get_hash(self):
-
-        if self.transactions:
-            block_string = "{}{}{}".format(self.index,
-                                           self.timestamp,
-                                           json.dumps(self.transactions))
-        else:
-            block_string = "{}{}".format(self.index,
-                                         self.timestamp)
+        block_string = "{}{}{}".format(self.index,
+                                       self.timestamp,
+                                       json.dumps(self.transactions))
 
         hash_value = sha256(block_string.encode()).hexdigest()
         return hash_value
@@ -43,9 +38,10 @@ class Block():
 
 class Blockchain():
 
-    def __init__(self):
+    def __init__(self, seed_amount=1000):
         self.transactions = []
-        self.last_block = Blockchain.create_genesis_block()
+        self.seed_amount = seed_amount
+        self.last_block = Blockchain.create_genesis_block(self.seed_amount)
 
     def add_transaction(self, sender, recipient, amount, timestamp=None):
         if not timestamp:
@@ -97,14 +93,19 @@ class Blockchain():
         return proof
 
     @staticmethod
-    def create_genesis_block():
+    def create_genesis_block(seed_amount):
         index = 0
         timestamp = time.time()
+        transactions = [{"sender": None,
+                         "recipient": "genesis",
+                         "amount": seed_amount,
+                         "timestamp": timestamp}]
 
-        genesis_hash = sha256("{}{}".format(index,
-                                            timestamp).encode()).hexdigest()
+        genesis_hash = sha256("{}{}{}".format(index,
+                                            timestamp,
+                                            json.dumps(transactions)).encode()).hexdigest()
         proof = Blockchain.get_proof(genesis_hash)
-        genesis_block = Block(index, timestamp, None, proof, None)
+        genesis_block = Block(index, timestamp, transactions, proof, None)
         return genesis_block
 
     @staticmethod
