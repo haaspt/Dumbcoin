@@ -57,8 +57,6 @@ class Block():
         self.proof = proof
         self.previous_block = previous_block
         self.hash = self.get_hash()
-        if not self.verify_block():
-            raise BlockchainException("Block failed verification on init")
 
     def get_hash(self):
         """
@@ -77,28 +75,12 @@ class Block():
         hash_value = sha256(block_string.encode()).hexdigest()
         return hash_value
 
-    def verify_block(self):
-        """
-        Verifies if the current block is valid. Hashes the combined string of
-        the block's hash along with the proof. It then checks if the first four
-        bytes of the verification hash are 0s (which is the convention of this
-        blockchain).
-
-        Returns
-        -------
-        block_verified : boolean
-        """
-        verification_hash = sha256("{}{}".format(self.hash,
-                                                 self.proof).encode()).hexdigest()
-        block_verified = verification_hash[:4] == "0000"
-        return block_verified
-
     def __str__(self):
         string_template = "Block: {},\nTime: {},\nProof: {},\nTransactions: {}\n"
         return string_template.format(self.index,
                                       self.timestamp,
                                       self.proof,
-                                      self.transactions)
+                                      "\n".join([str(x) for x in self.transactions]))
 
 class Blockchain():
     """
@@ -119,6 +101,11 @@ class Blockchain():
     seed_amount : int, optional
         The initial amount of coins available when a genesis block is created.
         Defaults to 1,000 if not specified.
+    complexity_level : int, optional
+        The number of "0"s that a computer hash must start with in order to mine
+        a new block. Higher levels of complexity will require longer mining times
+        but with the added benefit of additional security.
+        Defaults to 4 if not specified.
     last_block : Block
         A reference to the last block in the blockchain array
 
@@ -128,10 +115,11 @@ class Blockchain():
     >>> dumbcoin.verify_blockchain()
     True
     """
-    def __init__(self, seed_amount=1000):
+    def __init__(self, seed_amount=1000, complexity_level=4):
         self.transactions = []
         self.seed_amount = seed_amount
-        self.last_block = Blockchain.create_genesis_block(self.seed_amount)
+        self.complexity_level = complexity_level
+        self.last_block = self.create_genesis_block()
 
     def add_transaction(self, sender, recipient, amount, timestamp=None, validate_transaction=True):
         if not timestamp:
@@ -142,8 +130,8 @@ class Blockchain():
                        "timestamp": timestamp}
         print("Staging transaction: {}".format(transaction))
         if validate_transaction:
-            validated = Blockchain.validate_transaction(transaction,
-                                                        Blockchain.get_settled_transactions(self.last_block))
+            validated = self.validate_transaction(transaction,
+                                                        self.get_settled_transactions())
             if not validated:
                 raise BlockchainException("Transaction failed to validate. Aborting")
             print("Transaction validated against ledger")
@@ -154,26 +142,46 @@ class Blockchain():
         if not self.transactions:
             raise BlockchainException("No transactions to add to block")
         print("Mining new block with {} transactions".format(len(self.transactions)))
-        new_block = Blockchain.mine_block(self.transactions, self.last_block)
+        new_block = self.mine_block()
+        if not self.verify_block(new_block):
+            raise BlockchainException("Block failed verification. Aborting")
         self.transactions = []
         self.last_block = new_block
         print("Block successfully added to blockchain at index {}".format(new_block.index))
 
-    @staticmethod
-    def verify_blockchain(last_block):
-        last_block
+    def verify_block(self, block):
+        """
+        Verifies if the current block is valid. Hashes the combined string of
+        the block's hash along with the proof. It then checks if the first four
+        bytes of the verification hash are 0s (which is the convention of this
+        blockchain).
+
+        Parameters
+        ----------
+        block : Block
+            The block to have its contents verified
+
+        Returns
+        -------
+        block_verified : boolean
+        """
+        verification_hash = sha256("{}{}".format(block.hash,
+                                                 block.proof).encode()).hexdigest()
+        block_verified = verification_hash[:4] == ("0" * self.complexity_level)
+        return block_verified
+
+    def verify_blockchain(self):
         def recursive_verify(block):
-            if block.verify_block():
+            if self.verify_block(block):
                 if block.previous_block:
                     return recursive_verify(block.previous_block)
                 else:
                     return True
             else:
                 return False
-        return recursive_verify(last_block)
+        return recursive_verify(self.last_block)
 
-    @staticmethod
-    def get_settled_transactions(last_block):
+    def get_settled_transactions(self):
         transaction_list = []
         def recursive_transactions(block):
             for transaction in block.transactions:
@@ -182,57 +190,56 @@ class Blockchain():
                 recursive_transactions(block.previous_block)
             else:
                 return
-        recursive_transactions(last_block)
+        recursive_transactions(self.last_block)
         transaction_list.sort(key=(lambda x: x['timestamp']), reverse=False)
         return transaction_list
 
-    @staticmethod
-    def get_proof(block_hash):
+    def get_proof(self, block_hash):
         proof = 0
         proof_found = False
         while not proof_found:
             proof_hash = sha256("{}{}".format(block_hash,
                                               proof).encode()).hexdigest()
-            if proof_hash[:4] == "0000":
+            if proof_hash[:4] == ("0" * self.complexity_level):
                 proof_found = True
                 break
             proof += 1
         return proof
 
-    @staticmethod
-    def create_genesis_block(seed_amount):
+    def create_genesis_block(self):
+        process_start = timer()
         index = 0
         timestamp = time.time()
         transactions = [{"sender": None,
                          "recipient": "genesis",
-                         "amount": seed_amount,
+                         "amount": self.seed_amount,
                          "timestamp": timestamp}]
 
         genesis_hash = sha256("{}{}{}".format(index,
-                                            timestamp,
-                                            json.dumps(transactions)).encode()).hexdigest()
-        proof = Blockchain.get_proof(genesis_hash)
+                                              timestamp,
+                                              json.dumps(transactions)).encode()).hexdigest()
+        proof = self.get_proof(genesis_hash)
         genesis_block = Block(index, timestamp, transactions, proof, None)
+        process_end = timer()
+        print("Genesis block mined in {}s".format(process_end - process_start))
         return genesis_block
 
-    @staticmethod
-    def mine_block(data, previous_block):
+    def mine_block(self):
         process_start = timer()
-        index = previous_block.index + 1
+        index = self.last_block.index + 1
         timestamp = time.time()
         block_string = "{}{}{}".format(index,
                                        timestamp,
-                                       json.dumps(data))
+                                       json.dumps(self.transactions))
         block_hash = sha256(block_string.encode()).hexdigest()
-        proof = Blockchain.get_proof(block_hash)
-        new_block = Block(index, timestamp, data, proof, previous_block)
+        proof = self.get_proof(block_hash)
+        new_block = Block(index, timestamp, self.transactions, proof, self.last_block)
         process_end = timer()
         print("New block at index {} mined in {}s".format(new_block.index,
                                                           (process_end-process_start)))
         return new_block
 
-    @staticmethod
-    def create_ledger(past_transactions):
+    def create_ledger(self, past_transactions):
         ledger = {}
         # Check the first block to make sure it's a genesis block
         genesis_block = past_transactions[0]
@@ -242,12 +249,11 @@ class Blockchain():
         ledger[genesis_block['recipient']] = genesis_block['amount']
         # Iterate through the rest of the transactions and fill in the ledger
         for transaction in past_transactions[1:]:
-            ledger = Blockchain.add_transaction_to_ledger(transaction, ledger)
+            ledger = self.add_transaction_to_ledger(transaction, ledger)
 
         return ledger
 
-    @staticmethod
-    def add_transaction_to_ledger(transaction, ledger):
+    def add_transaction_to_ledger(self, transaction, ledger):
         sender = transaction['sender']
         recipient = transaction['recipient']
         amount = transaction['amount']
@@ -262,12 +268,11 @@ class Blockchain():
 
         return ledger
 
-    @staticmethod
-    def validate_transaction(new_transaction, past_transactions):
+    def validate_transaction(self, new_transaction, past_transactions):
         print("Validating transaction: {}".format(new_transaction))
-        ledger = Blockchain.create_ledger(past_transactions)
+        ledger = self.create_ledger(past_transactions)
         try:
-            Blockchain.add_transaction_to_ledger(new_transaction, ledger)
+            self.add_transaction_to_ledger(new_transaction, ledger)
         except BlockchainException:
             return False
 
