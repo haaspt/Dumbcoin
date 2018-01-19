@@ -167,7 +167,7 @@ class Blockchain():
         """
         verification_hash = sha256("{}{}".format(block.hash,
                                                  block.proof).encode()).hexdigest()
-        block_verified = verification_hash[:4] == ("0" * self.complexity_level)
+        block_verified = verification_hash[:self.complexity_level] == ("0" * self.complexity_level)
         return block_verified
 
     def verify_blockchain(self):
@@ -200,7 +200,7 @@ class Blockchain():
         while not proof_found:
             proof_hash = sha256("{}{}".format(block_hash,
                                               proof).encode()).hexdigest()
-            if proof_hash[:4] == ("0" * self.complexity_level):
+            if proof_hash[:self.complexity_level] == ("0" * self.complexity_level):
                 proof_found = True
                 break
             proof += 1
