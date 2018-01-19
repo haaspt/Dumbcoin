@@ -145,6 +145,7 @@ class Blockchain():
         if not self.transactions:
             raise BlockchainException("No transactions to add to block")
         new_block = Blockchain.mine_block(self.transactions, self.last_block)
+        self.transactions = []
         self.last_block = new_block
 
     @staticmethod
