@@ -174,14 +174,6 @@ class Blockchain():
         return transaction_list
 
     @staticmethod
-    def print_blockchain(last_block):
-        def recursive_print(block):
-            print(block)
-            if block.previous_block:
-                recursive_print(block.previous_block)
-        recursive_print(last_block)
-
-    @staticmethod
     def get_proof(block_hash):
         proof = 0
         proof_found = False
