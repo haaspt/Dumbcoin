@@ -147,8 +147,9 @@ class Blockchain():
         new_block = Blockchain.mine_block(self.transactions, self.last_block)
         self.last_block = new_block
 
-    def verify_blockchain(self):
-        block = self.last_block
+    @staticmethod
+    def verify_blockchain(last_block):
+        last_block
         def recursive_verify(block):
             if block.verify_block():
                 if block.previous_block:
@@ -157,7 +158,20 @@ class Blockchain():
                     return True
             else:
                 return False
-        return recursive_verify(block)
+        return recursive_verify(last_block)
+
+    @staticmethod
+    def get_settled_transactions(last_block):
+        transaction_list = []
+        def recursive_transactions(block):
+            for transaction in block.transactions:
+                transaction_list.append(transaction)
+            if block.previous_block:
+                recursive_transactions(block.previous_block)
+            else:
+                return
+        recursive_transactions(last_block)
+        return transaction_list
 
     @staticmethod
     def print_blockchain(last_block):
@@ -207,3 +221,15 @@ class Blockchain():
         proof = Blockchain.get_proof(block_hash)
         new_block = Block(index, timestamp, data, proof, previous_block)
         return new_block
+
+    def __str__(self):
+        block_strings = []
+        def recursive_strings(block):
+            block_strings.append(block.__str__())
+            if block.previous_block:
+                recursive_strings(block.previous_block)
+            else:
+                return
+        recursive_strings(self.last_block)
+        blockchain_string = "\n".join(block_strings)
+        return blockchain_string
