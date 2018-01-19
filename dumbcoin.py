@@ -1,5 +1,6 @@
 import time
 import json
+from timeit import default_timer as timer
 from hashlib import sha256
 
 class BlockchainException(Exception):
@@ -132,21 +133,31 @@ class Blockchain():
         self.seed_amount = seed_amount
         self.last_block = Blockchain.create_genesis_block(self.seed_amount)
 
-    def add_transaction(self, sender, recipient, amount, timestamp=None):
+    def add_transaction(self, sender, recipient, amount, timestamp=None, validate_transaction=True):
         if not timestamp:
             timestamp = time.time()
         transaction = {"sender": sender,
                        "recipient": recipient,
                        "amount": amount,
                        "timestamp": timestamp}
+        print("Staging transaction: {}".format(transaction))
+        if validate_transaction:
+            validated = Blockchain.validate_transaction(transaction,
+                                                        Blockchain.get_settled_transactions(self.last_block))
+            if not validated:
+                raise BlockchainException("Transaction failed to validate. Aborting")
+            print("Transaction validated against ledger")
         self.transactions.append(transaction)
+        print("Transaction stagged. {} transactions awaiting mining".format(len(self.transactions)))
 
     def add_block(self):
         if not self.transactions:
             raise BlockchainException("No transactions to add to block")
+        print("Mining new block with {} transactions".format(len(self.transactions)))
         new_block = Blockchain.mine_block(self.transactions, self.last_block)
         self.transactions = []
         self.last_block = new_block
+        print("Block successfully added to blockchain at index {}".format(new_block.index))
 
     @staticmethod
     def verify_blockchain(last_block):
@@ -172,6 +183,7 @@ class Blockchain():
             else:
                 return
         recursive_transactions(last_block)
+        transaction_list.sort(key=(lambda x: x['timestamp']), reverse=False)
         return transaction_list
 
     @staticmethod
@@ -205,6 +217,7 @@ class Blockchain():
 
     @staticmethod
     def mine_block(data, previous_block):
+        process_start = timer()
         index = previous_block.index + 1
         timestamp = time.time()
         block_string = "{}{}{}".format(index,
@@ -213,6 +226,9 @@ class Blockchain():
         block_hash = sha256(block_string.encode()).hexdigest()
         proof = Blockchain.get_proof(block_hash)
         new_block = Block(index, timestamp, data, proof, previous_block)
+        process_end = timer()
+        print("New block at index {} mined in {}s".format(new_block.index,
+                                                          (process_end-process_start)))
         return new_block
 
     @staticmethod
@@ -248,6 +264,7 @@ class Blockchain():
 
     @staticmethod
     def validate_transaction(new_transaction, past_transactions):
+        print("Validating transaction: {}".format(new_transaction))
         ledger = Blockchain.create_ledger(past_transactions)
         try:
             Blockchain.add_transaction_to_ledger(new_transaction, ledger)
