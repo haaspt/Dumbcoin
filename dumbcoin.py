@@ -225,3 +225,6 @@ class Blockchain():
         recursive_strings(self.last_block)
         blockchain_string = "\n".join(block_strings)
         return blockchain_string
+
+    def __len__(self):
+        return self.last_block.index + 1
