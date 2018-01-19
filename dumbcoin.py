@@ -215,6 +215,47 @@ class Blockchain():
         new_block = Block(index, timestamp, data, proof, previous_block)
         return new_block
 
+    @staticmethod
+    def create_ledger(past_transactions):
+        ledger = {}
+        # Check the first block to make sure it's a genesis block
+        genesis_block = past_transactions[0]
+        if genesis_block['recipient'] is not 'genesis' and genesis_block['sender'] is not None:
+            raise BlockchainException("Valid genesis block not found")
+        # Set initial genesis value in ledger
+        ledger[genesis_block['recipient']] = genesis_block['amount']
+        # Iterate through the rest of the transactions and fill in the ledger
+        for transaction in transactions[1:]:
+            ledger = add_transaction_to_ledger(transaction, ledger)
+
+        return ledger
+
+    @staticmethod
+    def add_transaction_to_ledger(transaction, ledger):
+        sender = transaction['sender']
+        recipient = transaction['recipient']
+        amount = transaction['amount']
+        if sender not in ledger.keys():
+            raise BlockchainException("Sender {} made a transaction before appearing in the ledger".format(sender))
+        if (ledger[sender] - amount) < 0:
+            raise BlockchainException("Sender {} attempted to overdraw their coins".format(sender))
+        if recipient not in ledger.keys():
+            ledger[recipient] = 0
+        ledger[sender] -= amount
+        ledger[recipient] += amount
+
+        return ledger
+
+    @staticmethod
+    def validate_transaction(new_transaction, past_transactions):
+        ledger = create_ledger(past_transactions)
+        try:
+            add_transaction_to_ledger(new_transaction, ledger)
+        except BlockchainException:
+            return False
+
+        return True
+
     def __str__(self):
         block_strings = []
         def recursive_strings(block):
