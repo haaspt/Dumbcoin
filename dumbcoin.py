@@ -225,8 +225,8 @@ class Blockchain():
         # Set initial genesis value in ledger
         ledger[genesis_block['recipient']] = genesis_block['amount']
         # Iterate through the rest of the transactions and fill in the ledger
-        for transaction in transactions[1:]:
-            ledger = add_transaction_to_ledger(transaction, ledger)
+        for transaction in past_transactions[1:]:
+            ledger = Blockchain.add_transaction_to_ledger(transaction, ledger)
 
         return ledger
 
@@ -248,9 +248,9 @@ class Blockchain():
 
     @staticmethod
     def validate_transaction(new_transaction, past_transactions):
-        ledger = create_ledger(past_transactions)
+        ledger = Blockchain.create_ledger(past_transactions)
         try:
-            add_transaction_to_ledger(new_transaction, ledger)
+            Blockchain.add_transaction_to_ledger(new_transaction, ledger)
         except BlockchainException:
             return False
 
